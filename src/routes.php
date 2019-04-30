@@ -18,48 +18,81 @@ return function (App $app) {
     $app->group('/api', function() use($app){
 
         //LOGIN USER
-        $app->get('/login', function(Request $request, Response $response){
-            $username = $request->getQueryParam('username');
-            $sql = "SELECT * FROM user WHERE username=:username";
+        $app->post('/login', function(Request $request, Response $response){
+            $username = $_POST['username'];
+            $password = md5($_POST['password']);
+            //$password = md5($request->getQueryParam('password'));
+            if ((empty($username)) || (empty($password))){
+                return $response->withJson(["success" => "0",
+                                            "message" => "username masih kosong"]);
+            }
+
+            $sql = "SELECT * FROM user WHERE username=:username AND password=:password";
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([":username" => $username]);
+            $stmt->execute([":username" => $username,
+                            ":password" => $password]);
             $result = $stmt->fetch();
             try{
                 if($result){
-                    return $response->withJson(["status" => "success",
-                                                "data" => $result, 200]);
+                    return $response->withJson(["success" => "1",
+                                                "message" => "Selamat Datang ".$username."", 
+                                                "id" => $result['id'],
+                                                "username" => $result['username'],200]);
                 }  else{
-                    return $response->withJson(["status" => "error",
-                                                "error_message" =>"username tidak ditemukan"]);
+                    return $response->withJson(["success" => "0",
+                                                "message" =>"username atau password tidak ditemukan"]);
                 }
             }catch(Exception $e){   
                 return $response->withJson(["status" => "error",
-                                            "error_message" => $e->getMessage()]);
+                                            "message" => $e->getMessage()]);
             }
         });
 
         //REGISTER
         $app->post('/register', function (Request $request, Response $response){
-            $username = $request->getQueryParam('username');
-            $email = $request->getQueryParam('email');
-            $password = $request->getQueryParam('password');
-            $tgl_lahir = $request->getQueryParam('tgl_lahir');
+            $username = $_POST['username'];
+            $password = md5($_POST['password']);
+            $email = $_POST['email'];
+            $confirm_password = md5($_POST['confirm_password']);
+            $tgl_lahir = $_POST['tgl_lahir'];
             $data = [
                     ":username" => $username,
                     ":email" => $email,
-                    ":password" => md5($password),
+                    ":password" => $password,
                     ":tgl_lahir" => $tgl_lahir
                     ];
-                    
-            $sql = "INSERT INTO user (username,email,password,tgl_lahir,created_at,updated_at) VALUE (:username,:email,:password,:tgl_lahir,now(),now())";
-            $stmt = $this->db->prepare($sql);
-            try{
-                if($stmt->execute($data)){
-                    return $response->withJson(["status" => "success", "data" => $data, 200]);
-                }
-            }catch(Exception $e){
-                return $response->withJson(["status" => $e->getMessage()]);
-            }
+                    if ((empty($username))) {
+                        return $response->withJson(["success" => "0",
+                                                    "message" => "username tidak boleh kosong"]);
+                    } else if ((empty($password))) {
+                        return $response->withJson(["success" => "0",
+                                                    "message" => "password tidak boleh kosong"]);
+                         die(json_encode($response));
+                     } else if ((empty($confirm_password)) || $password != $confirm_password) {
+                        return $response->withJson(["success" => "0",
+                                                    "message" => "confirm password tidak sesuai"]);
+                     }  else {
+                        if (!empty($username) && $password == $confirm_password){
+                            $sql = "SELECT * FROM user WHERE username='".$username."'";
+                            $stmt = $this->db->prepare($sql);
+                            $result = $stmt->fetch();
+                            if($result == 0){
+                                $sql = "INSERT INTO user (username,email,password,tgl_lahir,created_at,updated_at) VALUE (:username,:email,:password,:tgl_lahir,now(),now())";
+                                $stmt = $this->db->prepare($sql);
+                                try{
+                                    if($stmt->execute($data)){
+                                        return $response->withJson(["success" => "1", "message" => "Pendaftaran berhasil", 200]);
+                                    }
+                                }catch(Exception $e){
+                                    return $response->withJson(["success"=>"0",
+                                                                "message" => $e->getMessage()]);
+                                }
+                            }else{
+                                return $response->withJson(["success" => "0",
+                                                            "message" => "username sudah terdaftar"]);
+                            }
+                     }
+                    }
         });
 
         //USER DATA

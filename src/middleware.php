@@ -28,6 +28,7 @@ return function (App $app) {
             }
         }
 
-        return $response->withJson(["status" => "Unauthorized"], 401);
+        return $response->withJson(["success" => "0",
+                                    "message" => "Api Key Required", 401]);
     });
 };
